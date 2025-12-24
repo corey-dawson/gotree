@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test ./files -v 2>&1 | tee test-results.txt
+
+      - name: Build Linux binary
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o gotree-linux-amd64 -ldflags="-w -s" .
+        env:
+          CGO_ENABLED: 0
+
+      - name: Build Windows executable
+        run: |
+          GOOS=windows GOARCH=amd64 go build -o gotree-windows-amd64.exe -ldflags="-w -s" .
+        env:
+          CGO_ENABLED: 0
+
+      - name: Upload release artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            gotree-linux-amd64
+            gotree-windows-amd64.exe
+            test-results.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
